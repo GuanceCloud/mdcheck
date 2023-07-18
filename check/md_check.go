@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
+	"log"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -30,9 +31,6 @@ func newRule(re, replace, info string) *markdownRule {
 }
 
 var (
-	MarkdownCheck = ""
-	Autofix       = "off"
-	MetaDir       = ""
 
 	// `grep` among macOS and Linux not compatible to match Chinese characters, but Golang's
 	// regexp works well among these platforms. We use the regexp to match following patterns:
@@ -110,11 +108,25 @@ var (
 	}
 )
 
-func Match(dir string) int {
+type CheckResult struct {
+	Path string `json:"path"`
+	Text string `json:"text,omitempty"`
+	Err  string `json:"err,omitempty"`
+	Warn string `json:"warn,omitempty"`
+}
+
+func Check(opts ...option) (res []*CheckResult, err error) {
+	var co checkOption
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&co)
+		}
+	}
+
 	var mds []string
-	if err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+	if err = filepath.Walk(co.mddir, func(path string, info fs.FileInfo, err error) error {
 		if info == nil {
-			fmt.Printf("[W] nothing under %s\n", path)
+			log.Printf("nothing under %s", path)
 			return nil
 		}
 
@@ -129,68 +141,32 @@ func Match(dir string) int {
 		mds = append(mds, path)
 		return nil
 	}); err != nil {
-		l.Errorf("filepath.Walk: %s", err)
-		return 0
+		log.Printf("[W] filepath.Walk: %s", err)
+		return
 	}
 
-	totalMatched := 0
-
 	for _, md := range mds {
-		fmt.Printf("Checking %s ...\n", md)
+		log.Printf("Checking %s ...", md)
 
-		x, err := ioutil.ReadFile(filepath.Clean(md))
-		if err != nil {
-			l.Errorf("ReadFile: %s", err)
-			continue
-		}
-
-		if MetaDir != "" {
-			if err := checkMarkdownMeta(x, MetaDir); err != nil {
-				if e, ok := err.(*mderr); ok && e.level == mdWarn { ///nolint: errorlint
-					fmt.Printf("[W] %s: %s\n", md, err.Error())
-				} else {
-					fmt.Printf("[E] %s: %s\n", md, err.Error())
-					totalMatched++
-				}
-			}
+		if co.metadir != "" {
+			res = append(res, checkMarkdownMeta(md, co.metadir)...)
 			continue // only check meta info
 		}
 
-		arr, fix := doMatch(string(x), Autofix == "on")
+		arr, fix := doMatch(md, co.autofix)
 		if len(arr) > 0 { // we find some bad message
-			totalMatched += len(arr)
-
 			if len(fix) > 0 {
 				if err := ioutil.WriteFile(filepath.Clean(md), []byte(fix), 0o600); err != nil {
 					panic(err.Error())
 				}
 			}
 
-			fmt.Printf("--------------------\n%s: mached =>\n", md)
-			for _, item := range arr {
-				if strings.HasPrefix(item, "!!!invalid") {
-					if Autofix == "on" {
-						fmt.Printf("%s [auto-fixed]\n", item)
-					} else {
-						fmt.Printf("%s\n", item)
-					}
-				} else {
-					fmt.Printf("[E]\t%s:%d %q\n", md, getLineNumber(x, []byte(item)), item)
-				}
-			}
+			res = append(res, arr...)
 		}
 	}
 
-	fmt.Printf("matched %d files, total find %d issues\n", len(mds), totalMatched)
-
-	// when autofix enabled, we do not fire any error, makes it ok.
-	// NOTE: Do not enable autofix during CI, you should autofix errors
-	// on your local machine.
-	if Autofix == "on" {
-		return 0
-	} else {
-		return totalMatched
-	}
+	log.Printf("matched %d files", len(mds))
+	return res, nil
 }
 
 func getLineNumber(from, sub []byte) int {
@@ -206,33 +182,48 @@ func getLineNumber(from, sub []byte) int {
 	return line
 }
 
-func doMatch(d string, autofix bool) ([]string, string) {
-	var matches []string
+func doMatch(md string, autofix bool) (res []*CheckResult, fix string) {
+
+	d, err := ioutil.ReadFile(filepath.Clean(md))
+	if err != nil {
+		log.Printf("[E] ReadFile: %s", err)
+		return
+	}
 
 	// check punctuations
 	for _, r := range punctuationRules {
-		arr := r.Regexp.FindAllString(d, -1)
+		arr := r.Regexp.FindAllString(string(d), -1)
 		if len(arr) > 0 {
 			if autofix {
-				d = r.Regexp.ReplaceAllString(d, r.replace)
+				fix = r.Regexp.ReplaceAllString(string(d), r.replace)
 			}
-			matches = append(matches, r.info)
-			matches = append(matches, arr...)
+
+			for _, item := range arr {
+				res = append(res, &CheckResult{
+					Path: fmt.Sprintf("%s:%d", md, getLineNumber(d, []byte(item))),
+					Err:  r.info,
+					Text: item,
+				})
+			}
 		}
 	}
 
 	// check sections
-	arr := regSection.Regexp.FindAllString(d, -1)
+	arr := regSection.Regexp.FindAllString(string(d), -1)
 	if len(arr) > 0 {
 		for _, item := range arr {
 			if !strings.Contains(item, "{#") {
-				matches = append(matches, item)
+				res = append(res, &CheckResult{
+					Path: fmt.Sprintf("%s:%d", md, getLineNumber(d, []byte(item))),
+					Err:  regSection.info,
+					Text: item,
+				})
 			}
 		}
 	}
 
 	// check external links
-	arr = regExternalLink.Regexp.FindAllString(d, -1)
+	arr = regExternalLink.Regexp.FindAllString(string(d), -1)
 	if len(arr) > 0 {
 		for _, item := range arr {
 			if urlExcluded(item, excludeExternalURLs) {
@@ -244,14 +235,18 @@ func doMatch(d string, autofix bool) ([]string, string) {
 			}
 
 			if autofix {
-				d = regExternalLink.ReplaceAllString(d, regExternalLink.replace)
+				fix = regExternalLink.ReplaceAllString(string(d), regExternalLink.replace)
 			}
 
-			matches = append(matches, item)
+			res = append(res, &CheckResult{
+				Path: fmt.Sprintf("%s:%d", md, getLineNumber(d, []byte(item))),
+				Err:  regExternalLink.info,
+				Text: item,
+			})
 		}
 	}
 
-	return matches, d
+	return res, fix
 }
 
 func urlExcluded(url string, excluded []string) bool {
