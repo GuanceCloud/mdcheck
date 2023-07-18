@@ -1,5 +1,8 @@
 # mdcheck
 
+[![GoDoc](https://godoc.org/github.com/GuanceCloud/mdcheck?status.svg)](https://godoc.org/github.com/GuanceCloud/mdcheck)
+[![MIT License](https://img.shields.io/badge/license-MIT-green?style=plastic)](LICENSE)
+
 本工具用于检测 mkdocs 中的 Markdown 文档，用以规范 Markdown 的编写：
 
 - 中英文混写的空格是否合规，如（空格用特殊字符展示以区分效果）：
