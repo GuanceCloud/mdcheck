@@ -49,7 +49,7 @@ english␣with␣中文
 ## 编译
 
 ```shell
-$ go build
+$ make
 ...
 ```
 
@@ -74,6 +74,6 @@ Usage of ./mdcheck:
     - [ ] 单词拼写（cspell）
     - [ ] Markdown 格式检测（markdownlint）
     - [ ] 404 检测（markdown-link-check）
-- [ ] 工程建设
-    - [ ] 添加 lint/makefile 等一系列周边设施
-    - [ ] 构建 goreleaser 工作流
+- [x] 工程建设
+    - [x] 添加 lint/Makefile 等一系列周边设施
+    - [x] 构建 goreleaser 工作流
