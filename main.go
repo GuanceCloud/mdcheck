@@ -16,6 +16,7 @@ var (
 	metaDir string
 )
 
+//nolint:gochecknoinits
 func init() {
 	flag.StringVar(&markdownDir, "md-dir", "", "markdown dirs")
 	flag.StringVar(&metaDir, "meta-dir", "", "markdown meta dir, with meta dir set, only checking meta info of markdown")
@@ -34,7 +35,6 @@ func main() {
 			check.WithMetaDir(metaDir),
 			check.WithAutofix(autofix),
 		)
-
 		if err != nil {
 			log.Printf("[E] %s", err.Error())
 			return

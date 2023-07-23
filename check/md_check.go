@@ -183,7 +183,6 @@ func getLineNumber(from, sub []byte) int {
 }
 
 func doMatch(md string, autofix bool) (res []*CheckResult, fix string) {
-
 	d, err := ioutil.ReadFile(filepath.Clean(md))
 	if err != nil {
 		log.Printf("[E] ReadFile: %s", err)

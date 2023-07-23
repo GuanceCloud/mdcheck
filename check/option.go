@@ -3,6 +3,7 @@
 // This product includes software developed at Guance Cloud (https://www.guance.com/).
 // Copyright 2021-present Guance, Inc.
 
+// Package check implements markdown basic checkings.
 package check
 
 type option func(*checkOption)
@@ -15,7 +16,7 @@ type checkOption struct {
 // WithMarkdownDir set markdown path to checking.
 func WithMarkdownDir(dir string) option {
 	return func(o *checkOption) {
-		if len(dir) >= 0 {
+		if len(dir) > 0 {
 			o.mddir = dir
 		}
 	}
@@ -24,7 +25,7 @@ func WithMarkdownDir(dir string) option {
 // WithMetaDir set markdown meta data path for checking.
 func WithMetaDir(dir string) option {
 	return func(o *checkOption) {
-		if len(dir) >= 0 {
+		if len(dir) > 0 {
 			o.metadir = dir
 		}
 	}
