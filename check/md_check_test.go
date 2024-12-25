@@ -28,7 +28,10 @@ Nginx OpenTracing 插件是 OpenTracing 开源的链路追踪插件，基于 C++
 
 - 配置插件
 
-### 安装 DDAgent Nginx OpenTracing 插件`
+### 安装 DDAgent Nginx OpenTracing 插件
+
+### {{some-template-name}}
+`
 
 		f := filepath.Join(t.TempDir(), "some.txt")
 		assert.NoError(t, os.WriteFile(f, []byte(txt), 0600))
