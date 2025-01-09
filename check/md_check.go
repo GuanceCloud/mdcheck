@@ -94,7 +94,8 @@ var (
 
 	// Markdown Section checking, all sections must attach a tag like:
 	//  ## This is a section {#some-section}
-	regSection = newRule(`^##+.*`,
+	regSection = newRule(
+		`(?m)^\#{2,6}\s*(.*)$`,
 		"", // can not fix invalid section
 		"!!!invalid: section should have a tag")
 
@@ -211,6 +212,10 @@ func doMatch(md string, autofix bool) (res []*CheckResult, fix string) {
 	arr := regSection.Regexp.FindAllString(string(d), -1)
 	if len(arr) > 0 {
 		for _, item := range arr {
+			if strings.Contains(item, "{{") { // this may be a template
+				continue
+			}
+
 			if !strings.Contains(item, "{#") {
 				res = append(res, &CheckResult{
 					Path: fmt.Sprintf("%s:%d", md, getLineNumber(d, []byte(item))),
