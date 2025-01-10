@@ -10,7 +10,22 @@ type option func(*checkOption)
 
 type checkOption struct {
 	mddir, metadir string
-	autofix        bool
+
+	checkPunctuation,
+	checkSection,
+	checkLinks,
+	checkMeta,
+	autofix bool
+}
+
+func defaultOpt() checkOption {
+	return &checkOption{
+		checkPunctuation: true,
+		checkSection:     true,
+		checkLinks:       true,
+		checkMeta:        true,
+		autofix:          true,
+	}
 }
 
 // WithMarkdownDir set markdown path to checking.
@@ -35,5 +50,29 @@ func WithMetaDir(dir string) option {
 func WithAutofix(on bool) option {
 	return func(o *checkOption) {
 		o.autofix = on
+	}
+}
+
+func WithCheckSection(on bool) option {
+	return func(o *checkOption) {
+		o.checkSection = on
+	}
+}
+
+func WithCheckPunctuation(on bool) option {
+	return func(o *checkOption) {
+		o.checkPunctuation = on
+	}
+}
+
+func WithCheckLinks(on bool) option {
+	return func(o *checkOption) {
+		o.checkLinks = on
+	}
+}
+
+func WithCheckMeta(on bool) option {
+	return func(o *checkOption) {
+		o.checkMeta = on
 	}
 }
