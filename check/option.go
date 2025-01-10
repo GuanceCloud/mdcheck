@@ -19,7 +19,7 @@ type checkOption struct {
 	autofix bool
 }
 
-func defaultOpt() checkOption {
+func defaultOpt() *checkOption {
 	return &checkOption{
 		checkPunctuation: true,
 		checkSection:     true,

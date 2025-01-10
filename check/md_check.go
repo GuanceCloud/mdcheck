@@ -238,7 +238,7 @@ func (co *checkOption) doMatch(md string) (res []*CheckResult, fix string) {
 
 	if co.checkLinks {
 		// check external links
-		arr = regExternalLink.Regexp.FindAllString(string(d), -1)
+		arr := regExternalLink.Regexp.FindAllString(string(d), -1)
 		if len(arr) > 0 {
 			for _, item := range arr {
 				if urlExcluded(item, excludeExternalURLs) {
@@ -249,7 +249,7 @@ func (co *checkOption) doMatch(md string) (res []*CheckResult, fix string) {
 					continue
 				}
 
-				if autofix {
+				if co.autofix {
 					fix = regExternalLink.ReplaceAllString(string(d), regExternalLink.replace)
 				}
 
