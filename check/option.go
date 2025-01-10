@@ -10,7 +10,17 @@ type option func(*checkOption)
 
 type checkOption struct {
 	mddir, metadir string
+	skips          []string
 	autofix        bool
+}
+
+func (o *checkOption) skipped(f string) bool {
+	for _, x := range o.skips {
+		if f == x {
+			return true
+		}
+	}
+	return false
 }
 
 // WithMarkdownDir set markdown path to checking.
@@ -19,6 +29,13 @@ func WithMarkdownDir(dir string) option {
 		if len(dir) > 0 {
 			o.mddir = dir
 		}
+	}
+}
+
+// WithExcludeFiles set files that skip checking.
+func WithExcludeFiles(files ...string) option {
+	return func(o *checkOption) {
+		o.skips = append(o.skips, files...)
 	}
 }
 

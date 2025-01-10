@@ -139,6 +139,10 @@ func Check(opts ...option) (res []*CheckResult, err error) {
 			return nil
 		}
 
+		if co.skipped(path) {
+			return nil
+		}
+
 		mds = append(mds, path)
 		return nil
 	}); err != nil {
