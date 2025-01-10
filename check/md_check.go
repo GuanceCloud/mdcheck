@@ -117,10 +117,10 @@ type CheckResult struct {
 }
 
 func Check(opts ...option) (res []*CheckResult, err error) {
-	var co checkOption
+	co := defaultOpt()
 	for _, opt := range opts {
 		if opt != nil {
-			opt(&co)
+			opt(co)
 		}
 	}
 
@@ -153,12 +153,12 @@ func Check(opts ...option) (res []*CheckResult, err error) {
 	for _, md := range mds {
 		log.Printf("Checking %s ...", md)
 
-		if co.metadir != "" {
+		if co.metadir != "" && co.checkMeta {
 			res = append(res, checkMarkdownMeta(md, co.metadir)...)
 			continue // only check meta info
 		}
 
-		arr, fix := doMatch(md, co.autofix)
+		arr, fix := co.doMatch(md)
 		if len(arr) > 0 { // we find some bad message
 			if len(fix) > 0 {
 				if err := ioutil.WriteFile(filepath.Clean(md), []byte(fix), 0o600); err != nil {
@@ -187,7 +187,7 @@ func getLineNumber(from, sub []byte) int {
 	return line
 }
 
-func doMatch(md string, autofix bool) (res []*CheckResult, fix string) {
+func (co *checkOption) doMatch(md string) (res []*CheckResult, fix string) {
 	d, err := ioutil.ReadFile(filepath.Clean(md))
 	if err != nil {
 		log.Printf("[E] ReadFile: %s", err)
@@ -196,9 +196,13 @@ func doMatch(md string, autofix bool) (res []*CheckResult, fix string) {
 
 	// check punctuations
 	for _, r := range punctuationRules {
+		if !co.checkPunctuation {
+			break
+		}
+
 		arr := r.Regexp.FindAllString(string(d), -1)
 		if len(arr) > 0 {
-			if autofix {
+			if co.autofix {
 				fix = r.Regexp.ReplaceAllString(string(d), r.replace)
 			}
 
@@ -212,45 +216,49 @@ func doMatch(md string, autofix bool) (res []*CheckResult, fix string) {
 		}
 	}
 
-	// check sections
-	arr := regSection.Regexp.FindAllString(string(d), -1)
-	if len(arr) > 0 {
-		for _, item := range arr {
-			if strings.Contains(item, "{{") { // this may be a template
-				continue
-			}
+	if co.checkSection {
+		// check sections
+		arr := regSection.Regexp.FindAllString(string(d), -1)
+		if len(arr) > 0 {
+			for _, item := range arr {
+				if strings.Contains(item, "{{") { // this may be a template
+					continue
+				}
 
-			if !strings.Contains(item, "{#") {
-				res = append(res, &CheckResult{
-					Path: fmt.Sprintf("%s:%d", md, getLineNumber(d, []byte(item))),
-					Err:  regSection.info,
-					Text: item,
-				})
+				if !strings.Contains(item, "{#") {
+					res = append(res, &CheckResult{
+						Path: fmt.Sprintf("%s:%d", md, getLineNumber(d, []byte(item))),
+						Err:  regSection.info,
+						Text: item,
+					})
+				}
 			}
 		}
 	}
 
-	// check external links
-	arr = regExternalLink.Regexp.FindAllString(string(d), -1)
-	if len(arr) > 0 {
-		for _, item := range arr {
-			if urlExcluded(item, excludeExternalURLs) {
-				continue
-			}
+	if co.checkLinks {
+		// check external links
+		arr := regExternalLink.Regexp.FindAllString(string(d), -1)
+		if len(arr) > 0 {
+			for _, item := range arr {
+				if urlExcluded(item, excludeExternalURLs) {
+					continue
+				}
 
-			if strings.Contains(item, `{:target="_blank"}`) {
-				continue
-			}
+				if strings.Contains(item, `{:target="_blank"}`) {
+					continue
+				}
 
-			if autofix {
-				fix = regExternalLink.ReplaceAllString(string(d), regExternalLink.replace)
-			}
+				if co.autofix {
+					fix = regExternalLink.ReplaceAllString(string(d), regExternalLink.replace)
+				}
 
-			res = append(res, &CheckResult{
-				Path: fmt.Sprintf("%s:%d", md, getLineNumber(d, []byte(item))),
-				Err:  regExternalLink.info,
-				Text: item,
-			})
+				res = append(res, &CheckResult{
+					Path: fmt.Sprintf("%s:%d", md, getLineNumber(d, []byte(item))),
+					Err:  regExternalLink.info,
+					Text: item,
+				})
+			}
 		}
 	}
 
