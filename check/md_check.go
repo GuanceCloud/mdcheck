@@ -99,6 +99,18 @@ var (
 		"", // can not fix invalid section
 		"!!!invalid: section should have a tag")
 
+	// Markdown Section reference, all section reference looks like:
+	//
+	//   Please see [here](some.md#some-section) for more info.
+	// OR
+	//   Please see [here](some.md) for more info.
+	// Or
+	//   Please see [here](http://example.com/abc/def){:target="_blank"} for more info.
+	regSectionRef = newRule(
+		`\[([^\]]+)\]\(([^)]+)\)`,
+		"", // can not fix 404 references
+		"!!!invalid: reference not found")
+
 	// Check external links.
 	regExternalLink = newRule(`(?P<text>\[.*\])\((?P<link>http[a-zA-Z0-9_/\-\.:?=&+]+)\)(?P<suffix>\{:target="_blank"*\})?`,
 		`$1($2){:target="_blank"}`,
